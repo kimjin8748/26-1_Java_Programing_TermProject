@@ -1,0 +1,12 @@
+# 컴파일된 클래스 파일 배제
+*.class
+/bin/
+
+# Eclipse 설정 파일 배제
+.settings/
+.project
+.classpath
+
+# 운영체제 임시 파일 배제
+.DS_Store
+Thumbs.db

@@ -6,7 +6,7 @@ public class SwingData implements Serializable {
     private static final long serialVersionUID = 1L;
     
     private int hitDirection; // 1: 밀어치기, 2: 당겨치기
-    private char timing;      // 'f': 빠르게, 's': 느리게
+    private char timing;      // 'f': 빠르게, 's': 느리게, 'w': 기다리기
 
     public SwingData(String consoleInput) {
         // "1f" 같은 입력이 들어오면 분리해서 저장합니다.

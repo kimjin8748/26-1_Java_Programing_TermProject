@@ -13,6 +13,7 @@ public enum MessageType {
     // 2. 클라이언트의 행동 (Client Actions)
     ACTION_PITCH,       // 클라이언트(투수) -> 서버: 공을 던짐 (구속 데이터 포함)
     ACTION_SWING,       // 클라이언트(타자) -> 서버: 방망이를 휘두름 (스윙 여부)
+    ACTION_TAKE,        // 클라이언트(타자) -> 서버: 타자가 공을 지켜봄
 
     // 3. 서버의 판정 및 결과 브로드캐스트 (Server Broadcasts)
     RESULT_BALL,        // 서버 -> 클라이언트: 볼 판정

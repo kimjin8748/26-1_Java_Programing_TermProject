@@ -12,6 +12,8 @@ public class BoardPanel {
 
     private JLabel[] lblScoreA = new JLabel[3];
     private JLabel[] lblScoreB = new JLabel[3];
+    private JLabel lblTotalA;
+    private JLabel lblTotalB;
 
     private JLabel lbl1Base, lbl2Base, lbl3Base;
     private JLabel lblStrike, lblBall, lblOut;
@@ -42,15 +44,15 @@ public class BoardPanel {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.getContentPane().setLayout(null);
 
-        // 이닝 구분선 패널
+        // 이닝 구분선 패널 - 빈칸 제거
         JPanel scoreBoard = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                g.drawLine(0, 0, getWidth(), 0);
-                g.drawLine(0, 25, getWidth(), 25);
-                g.drawLine(0, 50, getWidth(), 50);
-                g.drawLine(0, 75, getWidth(), 75);
+                g.drawLine(0, 0, 340, 0);
+                g.drawLine(0, 25, 340, 25);
+                g.drawLine(0, 50, 340, 50);
+                g.drawLine(0, 75, 340, 75);
 
                 g.drawLine(0, 0, 0, 75);
                 g.drawLine(60, 0, 60, 75);
@@ -58,10 +60,9 @@ public class BoardPanel {
                 g.drawLine(200, 0, 200, 75);
                 g.drawLine(270, 0, 270, 75);
                 g.drawLine(340, 0, 340, 75);
-                g.drawLine(400, 0, 400, 75);
             }
         };
-        scoreBoard.setBounds(10, 5, 400, 75);
+        scoreBoard.setBounds(10, 5, 350, 75);
         scoreBoard.setOpaque(false);
         frame.getContentPane().add(scoreBoard);
 
@@ -92,6 +93,15 @@ public class BoardPanel {
             lblScoreB[i].setBounds(63 + i * 70, 60, 60, 20);
             frame.getContentPane().add(lblScoreB[i]);
         }
+
+        // 합계
+        lblTotalA = new JLabel("0", SwingConstants.CENTER);
+        lblTotalA.setBounds(273, 35, 60, 20);
+        frame.getContentPane().add(lblTotalA);
+
+        lblTotalB = new JLabel("0", SwingConstants.CENTER);
+        lblTotalB.setBounds(273, 60, 60, 20);
+        frame.getContentPane().add(lblTotalB);
 
         // 이닝 + 화살표
         lblInningLabel = new JLabel("이닝:");
@@ -169,6 +179,15 @@ public class BoardPanel {
     public void updateScore(int inning, int scoreA, int scoreB) {
         lblScoreA[inning].setText(String.valueOf(scoreA));
         lblScoreB[inning].setText(String.valueOf(scoreB));
+
+        // 합계 자동 계산
+        int totalA = 0, totalB = 0;
+        for (int i = 0; i < 3; i++) {
+            totalA += Integer.parseInt(lblScoreA[i].getText());
+            totalB += Integer.parseInt(lblScoreB[i].getText());
+        }
+        lblTotalA.setText(String.valueOf(totalA));
+        lblTotalB.setText(String.valueOf(totalB));
     }
 
     public void updateBase(boolean first, boolean second, boolean third) {

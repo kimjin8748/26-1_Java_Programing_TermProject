@@ -83,7 +83,7 @@ public class ClientHandler implements Runnable {
             out.writeObject(msg);
             out.flush(); // 파이프에 남은 데이터를 억지로 밀어내기
         } catch (IOException e) {
-            e.printStackTrace();
+            e.printStackTrace();//ddddddddd
         }
     }
     

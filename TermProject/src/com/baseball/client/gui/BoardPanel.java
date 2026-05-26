@@ -53,8 +53,9 @@ public class BoardPanel {
                 g.drawLine(0, 25, 340, 25);
                 g.drawLine(0, 50, 340, 50);
                 g.drawLine(0, 75, 340, 75);
+                g.drawLine(0, 100, 340, 100);  
 
-                g.drawLine(0, 0, 0, 75);
+                g.drawLine(0, 0, 0, 100);
                 g.drawLine(60, 0, 60, 75);
                 g.drawLine(130, 0, 130, 75);
                 g.drawLine(200, 0, 200, 75);
@@ -62,7 +63,7 @@ public class BoardPanel {
                 g.drawLine(340, 0, 340, 75);
             }
         };
-        scoreBoard.setBounds(10, 5, 350, 75);
+        scoreBoard.setBounds(10, 5, 350, 100);
         scoreBoard.setOpaque(false);
         frame.getContentPane().add(scoreBoard);
 

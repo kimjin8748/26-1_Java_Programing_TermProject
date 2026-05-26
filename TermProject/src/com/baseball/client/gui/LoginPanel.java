@@ -42,21 +42,26 @@ public class LoginPanel extends JPanel{
         JButton btnConnect = new JButton("접속");
         btnConnect.setBounds(150, 170, 150, 30);
         this.add(btnConnect);
+        
+        btnConnect.addActionListener(e -> attemptLogin());
+        
+        textFieldStudentId.addActionListener(e -> attemptLogin());
+        textFieldName.addActionListener(e -> attemptLogin());
+    }
+    
+    //접속 버튼 이벤트
+    private void attemptLogin() {
+        String studentId = textFieldStudentId.getText().trim();
+        String name = textFieldName.getText().trim();
 
-        // 접속 버튼 이벤트
-        btnConnect.addActionListener(e -> {
-            String studentId = textFieldStudentId.getText().trim();
-            String name = textFieldName.getText().trim();
+        if (studentId.isEmpty() || name.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "학번과 이름을 입력해주세요!");
+            return;
+        }
 
-            if (studentId.isEmpty() || name.isEmpty()) {
-            	JOptionPane.showMessageDialog(this, "학번과 이름을 입력해주세요!");
-                return;
-            }
+        String username = studentId + "_" + name; 
+        System.out.println("접속 시도: " + username);
 
-            String username = studentId + "_" + name; 
-            System.out.println("접속 시도: " + username);
-
-            controller.login(username);
-        });
+        controller.login(username);
     }
 }

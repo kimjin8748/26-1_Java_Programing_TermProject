@@ -1,6 +1,5 @@
 package com.baseball.client.gui;
 
-import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.Color;
 import java.awt.Graphics;
@@ -11,10 +10,13 @@ import java.awt.RenderingHints;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 
-public class GamePanel {
+import com.baseball.client.controller.GameController;
+import com.baseball.common.protocol.GameMessage;
 
-    private JFrame frame;
+public class GamePanel extends JPanel{
 
+	private GameController controller;
+	
     // 투수
     private JSlider sliderSpeed;
     private JComboBox<String> comboPitch;
@@ -52,34 +54,23 @@ public class GamePanel {
     // 역할
     private boolean isPitcher = true;
 
-    public static void main(String[] args) {
-        EventQueue.invokeLater(() -> {
-            try {
-                GamePanel window = new GamePanel();
-                window.frame.setVisible(true);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
 
-    public GamePanel() {
+    public GamePanel(GameController controller) {
+        this.controller = controller;
         initialize();
     }
 
     private void initialize() {
-        frame = new JFrame();
-        frame.setTitle("야구 게임");
-        frame.setBounds(100, 100, 800, 700);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().setLayout(null);
+    	
+    	this.setLayout(null);
+        this.setSize(800, 700);
 
         // ── 상단 전광판 ──
         JPanel boardPanel = new JPanel();
         boardPanel.setLayout(null);
         boardPanel.setBounds(0, 0, 800, 200);
         boardPanel.setBorder(BorderFactory.createTitledBorder("전광판"));
-        frame.getContentPane().add(boardPanel);
+        this.add(boardPanel);
 
         JPanel scoreBoard = new JPanel() {
             @Override
@@ -108,11 +99,11 @@ public class GamePanel {
             boardPanel.add(lbl);
         }
 
-        JLabel lblTeamA = new JLabel("팀A", SwingConstants.CENTER);
+        JLabel lblTeamA = new JLabel("원정", SwingConstants.CENTER);
         lblTeamA.setBounds(21, 55, 48, 20);
         boardPanel.add(lblTeamA);
 
-        JLabel lblTeamB = new JLabel("팀B", SwingConstants.CENTER);
+        JLabel lblTeamB = new JLabel("홈", SwingConstants.CENTER);
         lblTeamB.setBounds(21, 80, 48, 20);
         boardPanel.add(lblTeamB);
 
@@ -201,7 +192,7 @@ public class GamePanel {
         JPanel pitcherContainer = new JPanel();
         pitcherContainer.setLayout(null);
         pitcherContainer.setBounds(0, 200, 400, 350);
-        frame.getContentPane().add(pitcherContainer);
+        this.add(pitcherContainer);
 
         JPanel pitcherPanel = new JPanel();
         pitcherPanel.setLayout(null);
@@ -268,8 +259,14 @@ public class GamePanel {
         pitcherPanel.add(btnPitch);
 
         btnPitch.addActionListener(e -> {
-            String pitch = (String) comboPitch.getSelectedItem();
-            addGameLog("투구: " + lblSpeedValue.getText() + " / " + pitch);
+            int speed = sliderSpeed.getValue();
+            int typeIdx = comboPitch.getSelectedIndex();
+            String typeChar = (typeIdx == 0) ? "f" : (typeIdx == 1) ? "c" : "s"; 
+            
+            // "145f" 같은 문자열을 만들어 컨트롤러로 보냅니다.
+            controller.sendPitch(speed + typeChar); 
+            addGameLog("투구 준비 완료! (결과를 기다립니다...)");
+            btnPitch.setEnabled(false); // 투구 후 연속 클릭 방지
         });
 
         // 투수 오버레이
@@ -293,7 +290,7 @@ public class GamePanel {
         JPanel batterContainer = new JPanel();
         batterContainer.setLayout(null);
         batterContainer.setBounds(400, 200, 400, 350);
-        frame.getContentPane().add(batterContainer);
+        this.add(batterContainer);
 
         JPanel batterPanel = new JPanel();
         batterPanel.setLayout(null);
@@ -435,7 +432,6 @@ public class GamePanel {
                 timingDone = true;
                 stoppedPos = timingPos;
 
-                String hitType = (String) comboHitType.getSelectedItem();
                 int diff = stoppedPos - 100;
                 String timing;
                 Color resultColor;
@@ -451,12 +447,12 @@ public class GamePanel {
                     resultColor = Color.RED;
                 }
 
-                lblTimingResult.setText(timing);
-                lblTimingResult.setForeground(resultColor);
-                addGameLog("타격: " + hitType + " / " + timing);
-                btnHit.setText("타격!");
-
-                timingBarPanel.repaint();
+                int typeIdx = comboHitType.getSelectedIndex(); // 1, 2, 3
+                String timingChar = (Math.abs(diff) <= 10) ? "f" : (diff < -10) ? "s" : "s"; // 단순화
+                
+                // "1f" 같은 문자열 조립 후 컨트롤러로 전송
+                controller.sendSwing((typeIdx + 1) + timingChar);
+                btnHit.setEnabled(false); // 연속 클릭 방지
             }
         });
 
@@ -482,7 +478,7 @@ public class GamePanel {
         logPanel.setLayout(null);
         logPanel.setBounds(0, 550, 800, 110);
         logPanel.setBorder(BorderFactory.createTitledBorder("게임 진행"));
-        frame.getContentPane().add(logPanel);
+        this.add(logPanel);
 
         txtGameLog = new JTextArea();
         txtGameLog.setEditable(false);
@@ -496,11 +492,6 @@ public class GamePanel {
         // 초기 상태 설정
         setPitcherEnabled(isPitcher);
         setBatterEnabled(!isPitcher);
-     // 테스트용 공수전환 버튼 (나중에 서버 연동하면 삭제)
-        JButton btnSwitch = new JButton("공수전환 테스트");
-        btnSwitch.setBounds(300, 260, 160, 30);
-        frame.getContentPane().add(btnSwitch);
-        btnSwitch.addActionListener(e -> switchRole());
     }
 
     // 투수 컴포넌트 활성화/비활성화
@@ -543,6 +534,15 @@ public class GamePanel {
     public void addGameLog(String message) {
         txtGameLog.append(message + "\n");
         txtGameLog.setCaretPosition(txtGameLog.getDocument().getLength());
+    }
+    
+ // ==========================================
+    // ⭐ [추가] 서버에서 메시지가 올 때 BaseballGUI를 통해 호출될 갱신 메서드
+    // ==========================================
+    public void updateScreen(GameMessage msg) {
+        // 이 부분에 서버에서 받은 GameState를 바탕으로 화면을 갱신하는 로직을 채웁니다.
+        // 예: 전광판 업데이트, 로그 업데이트, 버튼 활성화/비활성화 등
+        // (BaseballGUI에서 msg를 분석하여 필요한 데이터를 뽑아내어 아래의 기존 update 메서드들을 호출하면 됩니다)
     }
 
     public void updateScore(int inning, int scoreA, int scoreB) {

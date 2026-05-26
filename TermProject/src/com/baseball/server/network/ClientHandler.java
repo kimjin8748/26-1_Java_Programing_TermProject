@@ -43,8 +43,16 @@ public class ClientHandler implements Runnable {
                 case LOGIN:
                     String username = (String) message.getData();
                     System.out.println("[서버] " + username + " 님이 접속했습니다.");
+                    if (server.getClientCount() == 2) {
+                        System.out.println("[서버] 2명 매칭 완료! 화면 전환 신호를 보냅니다.");
+                        
+                        // 1. 양쪽 클라이언트의 화면을 GamePanel로 넘기라는 신호
+                        server.broadcast(new GameMessage(MessageType.MATCH_COMPLETE));
+                        
+                        // 2. 빈 전광판(0대0, 1회초 등)의 초기 데이터를 화면에 그려주기 위한 신호
+                        server.broadcast(new GameMessage(MessageType.STATE_UPDATE, server.getGameState()));
+                    }
                     break;
-
                 case ACTION_PITCH:
                     // 1. 투수가 공을 던지면, 서버에 그 공을 잠시 저장합니다.
                     PitchData pitch = (PitchData) message.getData();

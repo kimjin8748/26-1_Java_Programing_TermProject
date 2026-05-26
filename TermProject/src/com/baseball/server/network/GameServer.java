@@ -43,6 +43,10 @@ public class GameServer {
         }
     }
     
+    public int getClientCount() {
+        return clients.size();
+    }
+    
     // Getters & Setters
     public GameState getGameState() { return gameState; }
     public Umpire getUmpire() { return umpire; }

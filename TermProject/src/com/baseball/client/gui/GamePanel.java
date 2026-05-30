@@ -904,4 +904,9 @@ public class GamePanel extends JPanel {
         lblInningNum.setText(String.valueOf(inning));
         lblInningArrow.setText(top ? "▲" : "▼");
     }
+
+	public void setPlayerNames(String myName, String opponentName) {
+		// TODO Auto-generated method stub
+		
+	}
 }

@@ -5,6 +5,7 @@ import com.baseball.common.protocol.GameMessage;
 import com.baseball.common.model.GameState;
 import com.baseball.common.model.PitchData;
 import com.baseball.common.model.SwingData;
+import javax.swing.SwingUtilities;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -18,10 +19,15 @@ public class ClientHandler implements Runnable {
     private ObjectOutputStream out;
     private ObjectInputStream in;
 
+    // 이 클라이언트의 역할
+    private boolean isPitcher = false;
+
     public ClientHandler(Socket socket, GameServer server) {
         this.socket = socket;
         this.server = server;
     }
+
+    public boolean isPitcher() { return isPitcher; }
 
     @Override
     public void run() {
@@ -42,9 +48,11 @@ public class ClientHandler implements Runnable {
 
                         int myOrder = server.incrementAndGetPlayerCount();
                         if (myOrder == 1) {
+                            isPitcher = true;
                             sendMessage(new GameMessage(MessageType.ROLE_PITCHER));
                             System.out.println("[서버] " + username + " → 투수 배정");
                         } else {
+                            isPitcher = false;
                             sendMessage(new GameMessage(MessageType.ROLE_BATTER));
                             System.out.println("[서버] " + username + " → 타자 배정");
                         }
@@ -58,28 +66,23 @@ public class ClientHandler implements Runnable {
                         break;
 
                     case ACTION_PITCH:
-                        // AI 모드일 때 타격은 AI가 처리
-                        if (server.isAiMode()) break;
-
                         PitchData pitch = (PitchData) message.getData();
                         server.setPendingPitch(pitch);
                         server.getGameState().setLastMessage("투수가 공을 던졌습니다! 타자는 타이밍을 선택하세요.");
                         server.broadcast(new GameMessage(MessageType.STATE_UPDATE, server.getGameState()));
                         server.broadcast(new GameMessage(MessageType.ACTION_PITCH));
 
-                        // AI 모드면 AI가 자동 타격
-                        if (server.isAiMode()) {
-                            javax.swing.Timer aiHitTimer = new javax.swing.Timer(2000, e -> {
-                                server.performAiAction();
+                        // AI가 타자면 자동 타격
+                        if (server.isAiMode() && !server.isAiPitcher()) {
+                            SwingUtilities.invokeLater(() -> {
+                                javax.swing.Timer t = new javax.swing.Timer(2000, e -> server.performAiSwing());
+                                t.setRepeats(false);
+                                t.start();
                             });
-                            aiHitTimer.setRepeats(false);
-                            aiHitTimer.start();
                         }
                         break;
 
                     case ACTION_SWING:
-                        if (server.isAiMode()) break;
-
                         SwingData swing = (SwingData) message.getData();
                         PitchData lastPitch = server.getPendingPitch();
 
@@ -92,15 +95,31 @@ public class ClientHandler implements Runnable {
                         server.setPendingPitch(null);
                         GameMessage swingResult = server.getUmpire().judgeSwing(lastPitch, swing);
                         server.processUmpireResult(swingResult);
+
+                        // AI가 투수면 다음 투구 준비
+                        if (server.isAiMode() && server.isAiPitcher()) {
+                            SwingUtilities.invokeLater(() -> {
+                                javax.swing.Timer t = new javax.swing.Timer(2000, e -> server.performAiPitch());
+                                t.setRepeats(false);
+                                t.start();
+                            });
+                        }
                         break;
 
                     case ACTION_TAKE:
-                        if (server.isAiMode()) break;
-
                         PitchData takePitch = server.getPendingPitch();
                         server.setPendingPitch(null);
                         GameMessage takeResult = server.getUmpire().judgeTake(takePitch);
                         server.processUmpireResult(takeResult);
+
+                        // AI가 투수면 다음 투구 준비
+                        if (server.isAiMode() && server.isAiPitcher()) {
+                            SwingUtilities.invokeLater(() -> {
+                                javax.swing.Timer t = new javax.swing.Timer(2000, e -> server.performAiPitch());
+                                t.setRepeats(false);
+                                t.start();
+                            });
+                        }
                         break;
 
                     case DISCONNECT:
@@ -111,7 +130,6 @@ public class ClientHandler implements Runnable {
         } catch (IOException | ClassNotFoundException e) {
             System.out.println("클라이언트와의 연결이 끊어졌습니다.");
         } finally {
-            // 연결 끊김 처리 - AI 모드 시작
             server.removeClient(this);
             closeResources();
         }

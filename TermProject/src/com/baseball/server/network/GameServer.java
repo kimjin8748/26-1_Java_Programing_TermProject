@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import javax.swing.SwingUtilities;
 import com.baseball.common.model.GameState;
 import com.baseball.common.model.PitchData;
 import com.baseball.common.model.SwingData;
@@ -27,8 +28,7 @@ public class GameServer {
 
     // AI 모드
     private boolean aiMode = false;
-    private boolean aiIsPitcher = false; // AI가 투수인지 타자인지
-    private javax.swing.Timer aiTimer;
+    private boolean aiIsPitcher = false;
     private Random rand = new Random();
 
     public void startServer() {
@@ -65,13 +65,17 @@ public class GameServer {
 
     // 클라이언트 연결 끊김 처리
     public synchronized void removeClient(ClientHandler handler) {
+        boolean wasP = handler.isPitcher();
         clients.remove(handler);
         System.out.println("[서버] 클라이언트 연결 끊김. 남은 클라이언트: " + clients.size());
 
-        // 게임 중 한 명이 나가면 AI 모드 시작
         if (clients.size() == 1 && !aiMode) {
+            aiIsPitcher = wasP;
+            System.out.println("[서버] AI 모드 시작! AI 역할: " + (aiIsPitcher ? "투수" : "타자"));
             broadcast(new GameMessage(MessageType.STATE_UPDATE, gameState));
-            startAiMode();
+
+            // SwingUtilities로 EDT에서 실행
+            SwingUtilities.invokeLater(() -> startAiMode());
         }
     }
 
@@ -80,55 +84,49 @@ public class GameServer {
         if (aiMode) return;
         aiMode = true;
 
-        // AI는 현재 pendingPitch 상태에 따라 투수/타자 결정
-        System.out.println("[서버] AI 모드 시작!");
-        broadcast(new GameMessage(MessageType.STATE_UPDATE, gameState));
-
-        // 3초 후 AI 첫 행동
-        aiTimer = new javax.swing.Timer(3000, e -> {
-            aiTimer.stop();
-            performAiAction();
-        });
-        aiTimer.setRepeats(false);
-        aiTimer.start();
+        if (aiIsPitcher) {
+            // AI가 투수면 3초 후 투구
+            scheduleAiPitch(3000);
+        }
+        // AI가 타자면 실제 투수가 던질 때 ClientHandler에서 처리
     }
 
-    // AI 행동
-    public synchronized void performAiAction() {
+    // AI 투구 예약
+    private void scheduleAiPitch(int delay) {
+        javax.swing.Timer t = new javax.swing.Timer(delay, e -> performAiPitch());
+        t.setRepeats(false);
+        t.start();
+    }
+
+    // AI 타격 예약
+    private void scheduleAiSwing(int delay) {
+        javax.swing.Timer t = new javax.swing.Timer(delay, e -> performAiSwing());
+        t.setRepeats(false);
+        t.start();
+    }
+
+    // AI 투구
+    public synchronized void performAiPitch() {
         if (!aiMode || clients.isEmpty()) return;
 
-        if (pendingPitch == null) {
-            // AI 투구
-            int speed = 80 + rand.nextInt(60);
-            char[] types = {'f', 'c', 's'};
-            char type = types[rand.nextInt(3)];
-            PitchData aiPitch = new PitchData(speed + "" + type);
-            setPendingPitch(aiPitch);
-            gameState.setLastMessage("[AI] 투수가 " + speed + "km/h 공을 던졌습니다!");
-            broadcast(new GameMessage(MessageType.STATE_UPDATE, gameState));
-            broadcast(new GameMessage(MessageType.ACTION_PITCH));
-
-            // 3초 후 AI 타격
-            aiTimer = new javax.swing.Timer(3000, e -> {
-                aiTimer.stop();
-                performAiSwing();
-            });
-            aiTimer.setRepeats(false);
-            aiTimer.start();
-
-        } else {
-            performAiSwing();
-        }
+        int speed = 80 + rand.nextInt(60);
+        char[] types = {'f', 'c', 's'};
+        char type = types[rand.nextInt(3)];
+        PitchData aiPitch = new PitchData(speed + "" + type);
+        setPendingPitch(aiPitch);
+        gameState.setLastMessage("[AI] 투수가 " + speed + "km/h 공을 던졌습니다!");
+        broadcast(new GameMessage(MessageType.STATE_UPDATE, gameState));
+        broadcast(new GameMessage(MessageType.ACTION_PITCH));
+        System.out.println("[서버] AI 투구: " + speed + "km/h " + type);
     }
 
     // AI 타격
-    private void performAiSwing() {
+    public synchronized void performAiSwing() {
         if (!aiMode || clients.isEmpty()) return;
 
         PitchData pitch = getPendingPitch();
         if (pitch == null) {
-            // 투구가 없으면 AI가 투구
-            performAiAction();
+            System.out.println("[서버] AI 타격 실패: 투구 없음");
             return;
         }
 
@@ -140,17 +138,10 @@ public class GameServer {
         setPendingPitch(null);
         GameMessage swingResult = umpire.judgeSwing(pitch, aiSwing);
         processUmpireResult(swingResult);
-
-        // 다음 투구를 위해 3초 후 다시 AI 행동
-        aiTimer = new javax.swing.Timer(3000, e -> {
-            aiTimer.stop();
-            performAiAction();
-        });
-        aiTimer.setRepeats(false);
-        aiTimer.start();
+        System.out.println("[서버] AI 타격: " + typeIdx + timing);
     }
 
-    // 심판 결과 처리 (ClientHandler와 공유)
+    // 심판 결과 처리
     public synchronized void processUmpireResult(GameMessage resultMsg) {
         GameState state = gameState;
         MessageType resultType = resultMsg.getType();
@@ -208,7 +199,6 @@ public class GameServer {
                                   + " → " + winner;
                     broadcast(new GameMessage(MessageType.STATE_UPDATE, state));
                     broadcast(new GameMessage(MessageType.GAME_OVER, result));
-                    if (aiTimer != null) aiTimer.stop();
                     aiMode = false;
                     return;
                 }
@@ -217,10 +207,23 @@ public class GameServer {
                 broadcast(new GameMessage(MessageType.INNING_OVER));
             }
 
+            // 공수교대 후 AI 역할도 바뀜
+            aiIsPitcher = !aiIsPitcher;
+            System.out.println("[서버] 공수교대 후 AI 역할: " + (aiIsPitcher ? "투수" : "타자"));
             broadcast(new GameMessage(MessageType.SWAP_TURN));
+
+            // 공수교대 후 AI가 투수면 자동 투구
+            if (aiIsPitcher) {
+                SwingUtilities.invokeLater(() -> scheduleAiPitch(2000));
+            }
         }
 
         broadcast(new GameMessage(MessageType.STATE_UPDATE, state));
+
+        // 판정 후 AI가 투수면 다음 투구
+        if (aiMode && aiIsPitcher && state.getOutCount() < 3) {
+            SwingUtilities.invokeLater(() -> scheduleAiPitch(2000));
+        }
     }
 
     public int getClientCount() { return clients.size(); }
@@ -231,6 +234,7 @@ public class GameServer {
     public PitchData getPendingPitch() { return pendingPitch; }
     public void setPendingPitch(PitchData pitch) { this.pendingPitch = pitch; }
     public boolean isAiMode() { return aiMode; }
+    public boolean isAiPitcher() { return aiIsPitcher; }
 
     public static void main(String[] args) {
         new GameServer().startServer();

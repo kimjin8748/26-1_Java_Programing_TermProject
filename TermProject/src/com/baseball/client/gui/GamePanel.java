@@ -7,6 +7,11 @@ import java.awt.Graphics2D;
 import java.awt.AlphaComposite;
 import java.awt.GradientPaint;
 import java.awt.RenderingHints;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 
@@ -25,12 +30,16 @@ public class GamePanel extends JPanel {
     private JButton btnPitch;
     private JLabel lblSpeedValue;
     private JPanel pitcherOverlay;
+    private JPanel pitcherContainer;
+    private JLabel lblPitcherName;
 
     // 타자
     private JComboBox<String> comboHitType;
     private JButton btnHit;
     private JPanel batterOverlay;
     private JLabel lblGuide;
+    private JPanel batterContainer;
+    private JLabel lblBatterName;
 
     // 타이밍 바
     private Timer timingTimer;
@@ -50,6 +59,7 @@ public class GamePanel extends JPanel {
     private JLabel lbl1Base, lbl2Base, lbl3Base;
     private JLabel lblStrike, lblBall, lblOut;
     private JLabel lblInningNum, lblInningArrow;
+    private JLabel lblTeamNameA, lblTeamNameB;
 
     // 대화창
     private JTextArea txtGameLog;
@@ -57,19 +67,77 @@ public class GamePanel extends JPanel {
     // 역할
     private boolean isPitcher = true;
 
+    // centerPanel 참조
+    private JPanel centerPanel;
+
+    // 홈런 효과 변수
+    private List<int[]> particles = new ArrayList<>();
+    private List<Color> particleColors = new ArrayList<>();
+    private List<double[]> particleVelocities = new ArrayList<>();
+    private int effectFrame = 0;
+    private boolean showEffect = false;
+    private Timer effectTimer;
+    private JPanel effectPanel;
+
     public GamePanel(GameController controller) {
         this.controller = controller;
         initialize();
     }
 
+    private void showHomerunEffect() {
+        particles.clear();
+        particleColors.clear();
+        particleVelocities.clear();
+        effectFrame = 0;
+        showEffect = true;
+
+        Random rand = new Random();
+        Color[] colors = {
+            Color.RED, Color.ORANGE, Color.YELLOW,
+            Color.GREEN, Color.CYAN, Color.BLUE, Color.MAGENTA,
+            Color.WHITE, Color.PINK, new Color(255, 150, 0)
+        };
+
+        int cx = 400;
+        int cy = 340;
+
+        for (int i = 0; i < 200; i++) {
+            particles.add(new int[]{cx, cy});
+            particleColors.add(colors[rand.nextInt(colors.length)]);
+            double angle = Math.random() * Math.PI * 2;
+            double speed = Math.random() * 10 + 3;
+            particleVelocities.add(new double[]{
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 3
+            });
+        }
+
+        effectPanel.setVisible(true);
+
+        if (effectTimer != null) effectTimer.stop();
+        effectTimer = new Timer(16, e -> {
+            effectFrame++;
+            effectPanel.repaint();
+            if (effectFrame >= 100) {
+                effectTimer.stop();
+                showEffect = false;
+                effectPanel.setVisible(false);
+            }
+        });
+        effectTimer.start();
+    }
+
     private void initialize() {
-        this.setLayout(null);
-        this.setSize(800, 700);
+        this.setLayout(new GridBagLayout());
+
+        centerPanel = new JPanel();
+        centerPanel.setLayout(null);
+        centerPanel.setPreferredSize(new java.awt.Dimension(800, 680));
 
         // ── 상단 전광판 ──
         JPanel boardPanel = new JPanel();
         boardPanel.setLayout(null);
-        boardPanel.setBounds(0, 0, 800, 200);
+        boardPanel.setBounds(0, 0, 800, 160);
         boardPanel.setBackground(new Color(20, 20, 20));
         boardPanel.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(new Color(80, 80, 80)),
@@ -78,77 +146,71 @@ public class GamePanel extends JPanel {
             new Font("굴림", Font.BOLD, 12),
             new Color(255, 220, 50)
         ));
-        this.add(boardPanel);
+        centerPanel.add(boardPanel);
 
-        // 헤더 레이블 (노란색)
         String[] headers = {"1회", "2회", "3회", "계"};
         for (int i = 0; i < 4; i++) {
             JLabel lbl = new JLabel(headers[i], SwingConstants.CENTER);
-            lbl.setBounds(83 + i * 70, 20, 60, 30);
+            lbl.setBounds(83 + i * 70, 15, 60, 25);
             lbl.setForeground(new Color(255, 220, 50));
             lbl.setFont(new Font("Monospaced", Font.BOLD, 13));
             boardPanel.add(lbl);
         }
 
-        // 팀명
-        JLabel lblTeamA = new JLabel("원정", SwingConstants.CENTER);
-        lblTeamA.setBounds(21, 50, 48, 30);
-        lblTeamA.setFont(new Font("Monospaced", Font.BOLD, 12));
-        lblTeamA.setForeground(new Color(200, 200, 200));
-        boardPanel.add(lblTeamA);
+        lblTeamNameA = new JLabel("원정", SwingConstants.CENTER);
+        lblTeamNameA.setBounds(21, 42, 48, 25);
+        lblTeamNameA.setFont(new Font("Monospaced", Font.BOLD, 12));
+        lblTeamNameA.setForeground(new Color(200, 200, 200));
+        boardPanel.add(lblTeamNameA);
 
-        JLabel lblTeamB = new JLabel("홈", SwingConstants.CENTER);
-        lblTeamB.setBounds(21, 80, 48, 30);
-        lblTeamB.setFont(new Font("Monospaced", Font.BOLD, 12));
-        lblTeamB.setForeground(new Color(200, 200, 200));
-        boardPanel.add(lblTeamB);
+        lblTeamNameB = new JLabel("홈", SwingConstants.CENTER);
+        lblTeamNameB.setBounds(21, 70, 48, 25);
+        lblTeamNameB.setFont(new Font("Monospaced", Font.BOLD, 12));
+        lblTeamNameB.setForeground(new Color(200, 200, 200));
+        boardPanel.add(lblTeamNameB);
 
-        // 이닝 점수
         for (int i = 0; i < 3; i++) {
             lblScoreA[i] = new JLabel("0", SwingConstants.CENTER);
-            lblScoreA[i].setBounds(83 + i * 70, 50, 60, 30);
+            lblScoreA[i].setBounds(83 + i * 70, 42, 60, 25);
             lblScoreA[i].setFont(new Font("Monospaced", Font.BOLD, 14));
             lblScoreA[i].setForeground(new Color(255, 220, 50));
             boardPanel.add(lblScoreA[i]);
 
             lblScoreB[i] = new JLabel("0", SwingConstants.CENTER);
-            lblScoreB[i].setBounds(83 + i * 70, 80, 60, 30);
+            lblScoreB[i].setBounds(83 + i * 70, 70, 60, 25);
             lblScoreB[i].setFont(new Font("Monospaced", Font.BOLD, 14));
             lblScoreB[i].setForeground(new Color(255, 220, 50));
             boardPanel.add(lblScoreB[i]);
         }
 
-        // 합계
         lblTotalA = new JLabel("0", SwingConstants.CENTER);
-        lblTotalA.setBounds(283, 50, 60, 30);
+        lblTotalA.setBounds(283, 42, 60, 25);
         lblTotalA.setFont(new Font("Monospaced", Font.BOLD, 16));
         lblTotalA.setForeground(new Color(255, 80, 80));
         boardPanel.add(lblTotalA);
 
         lblTotalB = new JLabel("0", SwingConstants.CENTER);
-        lblTotalB.setBounds(283, 80, 60, 30);
+        lblTotalB.setBounds(283, 70, 60, 25);
         lblTotalB.setFont(new Font("Monospaced", Font.BOLD, 16));
         lblTotalB.setForeground(new Color(255, 80, 80));
         boardPanel.add(lblTotalB);
 
-        // 이닝 + 화살표
         JLabel lblInningLabel = new JLabel("이닝:");
-        lblInningLabel.setBounds(420, 25, 40, 25);
+        lblInningLabel.setBounds(420, 20, 40, 25);
         lblInningLabel.setForeground(new Color(200, 200, 200));
         boardPanel.add(lblInningLabel);
 
         lblInningNum = new JLabel("1");
-        lblInningNum.setBounds(462, 25, 15, 25);
+        lblInningNum.setBounds(462, 20, 15, 25);
         lblInningNum.setForeground(new Color(255, 220, 50));
         lblInningNum.setFont(new Font("Monospaced", Font.BOLD, 14));
         boardPanel.add(lblInningNum);
 
         lblInningArrow = new JLabel("▲");
-        lblInningArrow.setBounds(478, 25, 20, 25);
+        lblInningArrow.setBounds(478, 20, 20, 25);
         lblInningArrow.setForeground(new Color(255, 220, 50));
         boardPanel.add(lblInningArrow);
 
-        // SBO
         lblStrike = new JLabel("S: 0");
         lblStrike.setBounds(420, 55, 50, 25);
         lblStrike.setForeground(new Color(255, 100, 100));
@@ -167,26 +229,24 @@ public class GamePanel extends JPanel {
         lblOut.setFont(new Font("Monospaced", Font.BOLD, 13));
         boardPanel.add(lblOut);
 
-        // 베이스
         lbl2Base = new JLabel("◇");
         lbl2Base.setFont(new Font("굴림", Font.PLAIN, 25));
-        lbl2Base.setBounds(630, 30, 35, 35);
+        lbl2Base.setBounds(630, 20, 35, 35);
         lbl2Base.setForeground(new Color(100, 100, 100));
         boardPanel.add(lbl2Base);
 
         lbl1Base = new JLabel("◇");
         lbl1Base.setFont(new Font("굴림", Font.PLAIN, 25));
-        lbl1Base.setBounds(665, 65, 35, 35);
+        lbl1Base.setBounds(665, 55, 35, 35);
         lbl1Base.setForeground(new Color(100, 100, 100));
         boardPanel.add(lbl1Base);
 
         lbl3Base = new JLabel("◇");
         lbl3Base.setFont(new Font("굴림", Font.PLAIN, 25));
-        lbl3Base.setBounds(595, 65, 35, 35);
+        lbl3Base.setBounds(595, 55, 35, 35);
         lbl3Base.setForeground(new Color(100, 100, 100));
         boardPanel.add(lbl3Base);
 
-        // 홈베이스
         JPanel homeBase = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -207,60 +267,70 @@ public class GamePanel extends JPanel {
                 g2.drawPolygon(xPoints, yPoints, 4);
             }
         };
-        homeBase.setBounds(623, 100, 35, 35);
+        homeBase.setBounds(623, 90, 35, 35);
         homeBase.setOpaque(false);
         boardPanel.add(homeBase);
 
-        // scoreBoard 배경 맨 마지막에 추가
         JPanel scoreBoard = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
                 g2.setColor(new Color(20, 20, 20));
                 g2.fillRect(0, 0, getWidth(), getHeight());
-
                 g2.setColor(new Color(40, 40, 40));
-                g2.fillRect(0, 0, getWidth(), 30);
-
+                g2.fillRect(0, 0, getWidth(), 25);
                 g2.setColor(new Color(30, 30, 30));
-                g2.fillRect(0, 30, getWidth(), 30);
-
+                g2.fillRect(0, 25, getWidth(), 25);
                 g2.setColor(new Color(25, 25, 25));
-                g2.fillRect(0, 60, getWidth(), 30);
-
+                g2.fillRect(0, 50, getWidth(), 25);
                 g2.setColor(new Color(60, 20, 20));
-                g2.fillRect(271, 31, 68, 58);
-
+                g2.fillRect(271, 26, 68, 48);
                 g2.setColor(new Color(80, 80, 80));
                 g2.drawLine(0, 0, 340, 0);
-                g2.drawLine(0, 30, 340, 30);
-                g2.drawLine(0, 60, 340, 60);
-
-                g2.drawLine(0, 0, 0, 90);
-                g2.drawLine(60, 0, 60, 90);
-                g2.drawLine(130, 0, 130, 90);
-                g2.drawLine(200, 0, 200, 90);
-                g2.drawLine(270, 0, 270, 90);
-                g2.drawLine(340, 0, 340, 90);
+                g2.drawLine(0, 25, 340, 25);
+                g2.drawLine(0, 50, 340, 50);
+                g2.drawLine(0, 75, 340, 75);
+                g2.drawLine(0, 0, 0, 75);
+                g2.drawLine(60, 0, 60, 75);
+                g2.drawLine(130, 0, 130, 75);
+                g2.drawLine(200, 0, 200, 75);
+                g2.drawLine(270, 0, 270, 75);
+                g2.drawLine(340, 0, 340, 75);
             }
         };
-        scoreBoard.setBounds(20, 20, 350, 110);
+        scoreBoard.setBounds(20, 15, 350, 75);
         scoreBoard.setOpaque(true);
         boardPanel.add(scoreBoard);
         boardPanel.setComponentZOrder(scoreBoard, boardPanel.getComponentCount() - 1);
 
+        // ── 이름 레이블 ──
+        lblPitcherName = new JLabel("< 투수 >", SwingConstants.CENTER);
+        lblPitcherName.setBounds(0, 160, 400, 25);
+        lblPitcherName.setFont(new Font("굴림", Font.BOLD, 14));
+        lblPitcherName.setForeground(new Color(255, 220, 50));
+        lblPitcherName.setBackground(new Color(20, 20, 20));
+        lblPitcherName.setOpaque(true);
+        centerPanel.add(lblPitcherName);
+
+        lblBatterName = new JLabel("< 타자 >", SwingConstants.CENTER);
+        lblBatterName.setBounds(400, 160, 400, 25);
+        lblBatterName.setFont(new Font("굴림", Font.BOLD, 14));
+        lblBatterName.setForeground(new Color(255, 220, 50));
+        lblBatterName.setBackground(new Color(20, 20, 20));
+        lblBatterName.setOpaque(true);
+        centerPanel.add(lblBatterName);
+
         // ── 투수 컨테이너 ──
-        JPanel pitcherContainer = new JPanel();
+        pitcherContainer = new JPanel();
         pitcherContainer.setLayout(null);
-        pitcherContainer.setBounds(0, 200, 400, 350);
-        this.add(pitcherContainer);
+        pitcherContainer.setBounds(0, 185, 400, 360);
+        centerPanel.add(pitcherContainer);
 
         JPanel pitcherPanel = new JPanel();
         pitcherPanel.setLayout(null);
-        pitcherPanel.setBounds(0, 0, 400, 350);
+        pitcherPanel.setBounds(0, 0, 400, 360);
         pitcherPanel.setBorder(new TitledBorder("투수"));
         pitcherContainer.add(pitcherPanel);
 
@@ -318,7 +388,7 @@ public class GamePanel extends JPanel {
         pitcherPanel.add(comboPitch);
 
         btnPitch = new JButton("투구!");
-        btnPitch.setBounds(100, 220, 150, 40);
+        btnPitch.setBounds(100, 240, 150, 40);
         btnPitch.setFont(new Font("굴림", Font.BOLD, 16));
         pitcherPanel.add(btnPitch);
 
@@ -342,21 +412,21 @@ public class GamePanel extends JPanel {
                 g2.fillRect(0, 0, getWidth(), getHeight());
             }
         };
-        pitcherOverlay.setBounds(0, 0, 400, 350);
+        pitcherOverlay.setBounds(0, 0, 400, 360);
         pitcherOverlay.setOpaque(false);
         pitcherOverlay.setVisible(!isPitcher);
         pitcherContainer.add(pitcherOverlay);
         pitcherContainer.setComponentZOrder(pitcherOverlay, 0);
 
         // ── 타자 컨테이너 ──
-        JPanel batterContainer = new JPanel();
+        batterContainer = new JPanel();
         batterContainer.setLayout(null);
-        batterContainer.setBounds(400, 200, 400, 350);
-        this.add(batterContainer);
+        batterContainer.setBounds(400, 185, 400, 360);
+        centerPanel.add(batterContainer);
 
         JPanel batterPanel = new JPanel();
         batterPanel.setLayout(null);
-        batterPanel.setBounds(0, 0, 400, 350);
+        batterPanel.setBounds(0, 0, 400, 360);
         batterPanel.setBorder(new TitledBorder("타자"));
         batterContainer.add(batterPanel);
 
@@ -435,15 +505,15 @@ public class GamePanel extends JPanel {
         batterPanel.add(lblTimingResult);
 
         btnHit = new JButton("타격!");
-        btnHit.setBounds(100, 210, 150, 40);
+        btnHit.setBounds(100, 220, 150, 40);
         btnHit.setFont(new Font("굴림", Font.BOLD, 16));
         batterPanel.add(btnHit);
 
         lblGuide = new JLabel(
-            "<html><center>⚠️ 4번 왕복 안에 멈추지 않으면<br>자동으로 기다리기 처리됩니다.</center></html>",
+            "<html><center>⚠️ 2번 왕복 안에 멈추지 않으면<br>자동으로 기다리기 처리됩니다.</center></html>",
             SwingConstants.CENTER
         );
-        lblGuide.setBounds(20, 260, 340, 50);
+        lblGuide.setBounds(20, 270, 340, 50);
         lblGuide.setForeground(new Color(180, 0, 0));
         lblGuide.setFont(new Font("굴림", Font.BOLD, 12));
         lblGuide.setBorder(BorderFactory.createLineBorder(new Color(180, 0, 0)));
@@ -462,14 +532,14 @@ public class GamePanel extends JPanel {
                 timingDir = 1;
                 timingLap++;
             }
-            if (timingLap >= 8) {
+            if (timingLap >= 4) {
                 timingTimer.stop();
                 timingActive = false;
                 timingDone = true;
                 stoppedPos = -1;
                 lblTimingResult.setText("⚾ 타이밍을 놓쳤습니다! 자동 기다리기.");
                 lblTimingResult.setForeground(Color.GRAY);
-                addGameLog("⏰ 4번 왕복 초과! 자동으로 기다리기 처리됩니다.");
+                addGameLog("⏰ 2번 왕복 초과! 자동으로 기다리기 처리됩니다.");
                 controller.sendTake();
                 btnHit.setText("타격!");
             }
@@ -530,6 +600,7 @@ public class GamePanel extends JPanel {
             }
         });
 
+        // 타자 오버레이
         batterOverlay = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -540,7 +611,7 @@ public class GamePanel extends JPanel {
                 g2.fillRect(0, 0, getWidth(), getHeight());
             }
         };
-        batterOverlay.setBounds(0, 0, 400, 350);
+        batterOverlay.setBounds(0, 0, 400, 360);
         batterOverlay.setOpaque(false);
         batterOverlay.setVisible(isPitcher);
         batterContainer.add(batterOverlay);
@@ -549,9 +620,9 @@ public class GamePanel extends JPanel {
         // ── 하단 대화창 ──
         JPanel logPanel = new JPanel();
         logPanel.setLayout(null);
-        logPanel.setBounds(0, 550, 800, 110);
+        logPanel.setBounds(0, 545, 800, 120);
         logPanel.setBorder(BorderFactory.createTitledBorder("게임 진행"));
-        this.add(logPanel);
+        centerPanel.add(logPanel);
 
         txtGameLog = new JTextArea();
         txtGameLog.setEditable(false);
@@ -559,11 +630,76 @@ public class GamePanel extends JPanel {
         txtGameLog.setBackground(new Color(240, 240, 240));
 
         JScrollPane scrollPane = new JScrollPane(txtGameLog);
-        scrollPane.setBounds(10, 20, 775, 80);
+        scrollPane.setBounds(10, 20, 775, 85);
         logPanel.add(scrollPane);
 
+        // ── 홈런 효과 패널 ──
+        effectPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (!showEffect) return;
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
+                g2.setColor(Color.BLACK);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+
+                float textAlpha = Math.min(1.0f, effectFrame < 20 ? effectFrame / 20.0f :
+                                  effectFrame > 80 ? (100 - effectFrame) / 20.0f : 1.0f);
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textAlpha));
+
+                g2.setFont(new Font("굴림", Font.BOLD, 80));
+                String text = "홈런!";
+                java.awt.FontMetrics fm = g2.getFontMetrics();
+                int tx = (getWidth() - fm.stringWidth(text)) / 2;
+                g2.setColor(new Color(255, 100, 0));
+                g2.drawString(text, tx + 3, 213);
+                g2.setColor(new Color(255, 220, 0));
+                g2.drawString(text, tx, 210);
+
+                g2.setFont(new Font("굴림", Font.BOLD, 30));
+                String sub = "⚾ HOMERUN !! ⚾";
+                fm = g2.getFontMetrics();
+                tx = (getWidth() - fm.stringWidth(sub)) / 2;
+                g2.setColor(Color.WHITE);
+                g2.drawString(sub, tx, 260);
+
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+
+                for (int i = 0; i < particles.size(); i++) {
+                    int[] pos = particles.get(i);
+                    double[] vel = particleVelocities.get(i);
+                    pos[0] += (int) vel[0];
+                    pos[1] += (int) vel[1];
+                    vel[1] += 0.25;
+
+                    float alpha = Math.max(0, 1.0f - effectFrame / 100.0f);
+                    g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+                    g2.setColor(particleColors.get(i));
+                    int size = (int)(Math.random() * 5 + 3);
+                    g2.fillOval(pos[0], pos[1], size, size);
+                    if (i % 3 == 0) {
+                        g2.fillRect(pos[0] - 1, pos[1] - 4, 3, 9);
+                        g2.fillRect(pos[0] - 4, pos[1] - 1, 9, 3);
+                    }
+                }
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+            }
+        };
+        effectPanel.setBounds(0, 0, 800, 680);
+        effectPanel.setOpaque(false);
+        effectPanel.setVisible(false);
+        centerPanel.add(effectPanel);
+        centerPanel.setComponentZOrder(effectPanel, 0);
+
+        this.add(centerPanel, new GridBagConstraints());
+
+        // 초기 상태 - 타자 버튼 비활성화 (투구 받기 전까지)
         setPitcherEnabled(isPitcher);
-        setBatterEnabled(!isPitcher);
+        setBatterEnabled(false); // ← 처음엔 무조건 false
     }
 
     private void setPitcherEnabled(boolean enabled) {
@@ -586,8 +722,14 @@ public class GamePanel extends JPanel {
         pitcherOverlay.setVisible(!isPitcher);
         batterOverlay.setVisible(isPitcher);
         setPitcherEnabled(isPitcher);
-        setBatterEnabled(!isPitcher);
+        setBatterEnabled(false); // ← 공수교대 후 타자 버튼 비활성화! 투구 받아야 활성화
         resetTimingBar();
+
+        // 이름 레이블 교체
+        String pitcherText = lblPitcherName.getText();
+        String batterText = lblBatterName.getText();
+        lblPitcherName.setText(batterText);
+        lblBatterName.setText(pitcherText);
     }
 
     private void resetTimingBar() {
@@ -625,16 +767,26 @@ public class GamePanel extends JPanel {
                 pitcherOverlay.setVisible(true);
                 batterOverlay.setVisible(false);
                 setPitcherEnabled(false);
-                setBatterEnabled(true);
+                setBatterEnabled(false); // 투구 받기 전까지 비활성화
                 addGameLog("🏏 당신은 타자입니다! 나중에 접속하셨습니다.");
                 break;
 
             case MATCH_COMPLETE:
                 addGameLog("✅ 매칭 완료! 게임을 시작합니다.");
+                if (msg.getData() != null) {
+                    String[] names = (String[]) msg.getData();
+                    String homeName = names[0].contains("_") ? names[0].split("_")[1] : names[0];
+                    String awayName = names[1].contains("_") ? names[1].split("_")[1] : names[1];
+                    lblTeamNameA.setText(awayName);
+                    lblTeamNameB.setText(homeName);
+                    lblPitcherName.setText("< " + homeName + " >");
+                    lblBatterName.setText("< " + awayName + " >");
+                }
                 break;
 
             case ACTION_PITCH:
                 if (!isPitcher) {
+                    // 투구 받았을 때만 타자 활성화!
                     addGameLog("⚾ 공이 날아옵니다! 타이밍을 맞춰 타격하세요!");
                     setBatterEnabled(true);
                     btnHit.setEnabled(true);
@@ -642,6 +794,7 @@ public class GamePanel extends JPanel {
                     resetTimingBar();
                 } else {
                     addGameLog("투구 완료! 타자의 반응을 기다립니다...");
+                    btnPitch.setEnabled(false);
                 }
                 break;
 
@@ -659,38 +812,41 @@ public class GamePanel extends JPanel {
                     }
                     if (state.getLastMessage() != null) {
                         addGameLog(state.getLastMessage());
+                        if (state.getLastMessage().contains("홈런")) {
+                            showHomerunEffect();
+                        }
                     }
                 }
                 break;
 
             case RESULT_BALL:
                 addGameLog("⚪ 볼!");
-                btnPitch.setEnabled(true);
-                btnHit.setEnabled(true);
+                btnPitch.setEnabled(isPitcher);
+                setBatterEnabled(false); // 다음 투구 전까지 비활성화
                 btnHit.setText("타격!");
                 resetTimingBar();
                 break;
 
             case RESULT_STRIKE:
                 addGameLog("🔴 스트라이크!");
-                btnPitch.setEnabled(true);
-                btnHit.setEnabled(true);
+                btnPitch.setEnabled(isPitcher);
+                setBatterEnabled(false);
                 btnHit.setText("타격!");
                 resetTimingBar();
                 break;
 
             case RESULT_HIT:
                 addGameLog("💥 안타!");
-                btnPitch.setEnabled(true);
-                btnHit.setEnabled(true);
+                btnPitch.setEnabled(isPitcher);
+                setBatterEnabled(false);
                 btnHit.setText("타격!");
                 resetTimingBar();
                 break;
 
             case RESULT_OUT:
                 addGameLog("❌ 아웃!");
-                btnPitch.setEnabled(true);
-                btnHit.setEnabled(true);
+                btnPitch.setEnabled(isPitcher);
+                setBatterEnabled(false);
                 btnHit.setText("타격!");
                 resetTimingBar();
                 break;
@@ -702,7 +858,6 @@ public class GamePanel extends JPanel {
 
             case INNING_OVER:
                 addGameLog("🏁 이닝 종료!");
-                switchRole();
                 break;
 
             case GAME_OVER:

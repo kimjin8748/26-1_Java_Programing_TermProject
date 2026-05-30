@@ -34,7 +34,14 @@ public class Umpire {
      * 2. 타자가 스윙했을 때 (Swing)의 판정
      */
     public GameMessage judgeSwing(PitchData pitch, SwingData swing) {
-        int roll = random.nextInt(100);
+    	 
+        // 이스터에그: 구속 0 + 당겨치기(1) + 완벽한 타이밍(f) = 무조건 홈런!
+        if (pitch.getSpeed() == 0 
+            && swing.getHitDirection() == 1 
+            && swing.getTiming() == 'f') {
+            return new GameMessage(MessageType.RESULT_HIT, 4);
+        }
+    	int roll = random.nextInt(100);
 
         // [1단계] 컨택(Contact) 계산 - 기본 컨택률 75%에서 구속에 따라 차감
         int contactChance = 75 - ((pitch.getSpeed() - 130) / 2);

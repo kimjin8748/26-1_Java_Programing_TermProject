@@ -37,9 +37,9 @@ public class ClientHandler implements Runnable {
                 switch (type) {
                     case LOGIN:
                         String username = (String) message.getData();
+                        server.addPlayerName(username);
                         System.out.println("[서버] " + username + " 님이 접속했습니다.");
 
-                        // 접속 순서에 따라 역할 배정
                         int myOrder = server.incrementAndGetPlayerCount();
                         if (myOrder == 1) {
                             sendMessage(new GameMessage(MessageType.ROLE_PITCHER));
@@ -51,21 +51,35 @@ public class ClientHandler implements Runnable {
 
                         if (server.getClientCount() == 2) {
                             System.out.println("[서버] 2명 매칭 완료! 게임 시작!");
-                            server.broadcast(new GameMessage(MessageType.MATCH_COMPLETE));
+                            String[] names = server.getPlayerNames();
+                            server.broadcast(new GameMessage(MessageType.MATCH_COMPLETE, names));
                             server.broadcast(new GameMessage(MessageType.STATE_UPDATE, server.getGameState()));
                         }
                         break;
 
                     case ACTION_PITCH:
+                        // AI 모드일 때 타격은 AI가 처리
+                        if (server.isAiMode()) break;
+
                         PitchData pitch = (PitchData) message.getData();
                         server.setPendingPitch(pitch);
                         server.getGameState().setLastMessage("투수가 공을 던졌습니다! 타자는 타이밍을 선택하세요.");
                         server.broadcast(new GameMessage(MessageType.STATE_UPDATE, server.getGameState()));
-                        
-                        // 타자에게 타격 활성화 신호 보내기
                         server.broadcast(new GameMessage(MessageType.ACTION_PITCH));
+
+                        // AI 모드면 AI가 자동 타격
+                        if (server.isAiMode()) {
+                            javax.swing.Timer aiHitTimer = new javax.swing.Timer(2000, e -> {
+                                server.performAiAction();
+                            });
+                            aiHitTimer.setRepeats(false);
+                            aiHitTimer.start();
+                        }
                         break;
+
                     case ACTION_SWING:
+                        if (server.isAiMode()) break;
+
                         SwingData swing = (SwingData) message.getData();
                         PitchData lastPitch = server.getPendingPitch();
 
@@ -75,14 +89,18 @@ public class ClientHandler implements Runnable {
                             break;
                         }
 
+                        server.setPendingPitch(null);
                         GameMessage swingResult = server.getUmpire().judgeSwing(lastPitch, swing);
-                        processUmpireResult(swingResult);
+                        server.processUmpireResult(swingResult);
                         break;
 
                     case ACTION_TAKE:
+                        if (server.isAiMode()) break;
+
                         PitchData takePitch = server.getPendingPitch();
+                        server.setPendingPitch(null);
                         GameMessage takeResult = server.getUmpire().judgeTake(takePitch);
-                        processUmpireResult(takeResult);
+                        server.processUmpireResult(takeResult);
                         break;
 
                     case DISCONNECT:
@@ -93,6 +111,8 @@ public class ClientHandler implements Runnable {
         } catch (IOException | ClassNotFoundException e) {
             System.out.println("클라이언트와의 연결이 끊어졌습니다.");
         } finally {
+            // 연결 끊김 처리 - AI 모드 시작
+            server.removeClient(this);
             closeResources();
         }
     }
@@ -116,81 +136,5 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private void processUmpireResult(GameMessage resultMsg) {
-        GameState state = server.getGameState();
-        MessageType resultType = resultMsg.getType();
-
-        if (resultType == MessageType.RESULT_HIT) {
-            int advanceBases = (Integer) resultMsg.getData();
-            server.getBaseManager().processHit(state, advanceBases);
-
-        } else if (resultType == MessageType.RESULT_OUT) {
-            state.addOut();
-            state.setLastMessage((String) resultMsg.getData());
-            state.resetBattingCount();
-
-        } else if (resultType == MessageType.RESULT_STRIKE) {
-            state.addStrike();
-            state.setLastMessage((String) resultMsg.getData());
-            if (state.getStrikeCount() >= 3) {
-                state.addOut();
-                state.setLastMessage("삼진 아웃!");
-                state.resetBattingCount();
-            }
-
-        } else if (resultType == MessageType.RESULT_BALL) {
-            state.addBall();
-            state.setLastMessage((String) resultMsg.getData());
-            if (state.getBallCount() >= 4) {
-                server.getBaseManager().processHit(state, 1);
-                state.setLastMessage("볼넷! 타자가 1루로 걸어 나갑니다.");
-            }
-        }
-
-        // 판정 결과 브로드캐스트
-        server.broadcast(resultMsg);
-
-        // 3아웃 공수교대 체크
-        if (state.getOutCount() >= 3) {
-            state.resetInning();
-
-            boolean wasTop = state.isTop();
-            state.setTop(!wasTop);
-
-            if (!state.isTop()) {
-                // 초 → 말로 전환
-                state.setLastMessage("3아웃! 공수 교대! " + state.getInning() + "회 말 시작!");
-            } else {
-                // 말 → 초로 전환 → 이닝 증가
-                state.setInning(state.getInning() + 1);
-
-                if (state.getInning() > 3) {
-                    String winner;
-                    if (state.getAwayScore() > state.getHomeScore()) {
-                        winner = "원정팀 승리!";
-                    } else if (state.getHomeScore() > state.getAwayScore()) {
-                        winner = "홈팀 승리!";
-                    } else {
-                        winner = "무승부!";
-                    }
-                    String result = "게임 종료! 원정: " + state.getAwayScore()
-                                  + " / 홈: " + state.getHomeScore()
-                                  + " → " + winner;
-                    server.broadcast(new GameMessage(MessageType.STATE_UPDATE, state));
-                    server.broadcast(new GameMessage(MessageType.GAME_OVER, result));
-                    return;
-                }
-
-                state.setLastMessage("3아웃! 공수 교대! " + state.getInning() + "회 초 시작!");
-                server.broadcast(new GameMessage(MessageType.INNING_OVER));
-            }
-
-            server.broadcast(new GameMessage(MessageType.SWAP_TURN));
-        }
-
-        // 최종 전광판 상태 브로드캐스트
-        server.broadcast(new GameMessage(MessageType.STATE_UPDATE, state));
     }
 }

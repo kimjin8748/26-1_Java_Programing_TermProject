@@ -1,34 +1,48 @@
 package com.baseball.client.gui;
 
 import javax.swing.*;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Font;
+import java.awt.Insets;
 
 public class WaitingPanel extends JPanel {
 
     private JLabel lblWaiting;
     private JLabel lblName;
 
-
     public WaitingPanel() {
         initialize();
     }
 
     private void initialize() {
-    	this.setLayout(null);
-        this.setSize(400, 300); // 크기 지정
+        this.setLayout(new GridBagLayout());
 
-        // 이름 표시 라벨 (처음에는 빈칸으로 둡니다)
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new GridBagLayout());
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(10, 0, 10, 0);
+
+        // 이름 레이블
         lblName = new JLabel("[ 대기 중... ]", SwingConstants.CENTER);
-        lblName.setBounds(0, 60, 400, 30);
-        this.add(lblName); // frame.getContentPane().add() -> this.add()로 변경
+        lblName.setFont(new Font("굴림", Font.BOLD, 20));
+        gbc.gridy = 0;
+        centerPanel.add(lblName, gbc);
 
         // 대기 메시지
         lblWaiting = new JLabel("상대방을 기다리는 중.", SwingConstants.CENTER);
-        lblWaiting.setBounds(0, 110, 400, 30);
-        this.add(lblWaiting);
+        lblWaiting.setFont(new Font("굴림", Font.PLAIN, 16));
+        gbc.gridy = 1;
+        centerPanel.add(lblWaiting, gbc);
 
+        // 안내 메시지
         JLabel lblSub = new JLabel("상대방이 접속하면 게임이 시작됩니다.", SwingConstants.CENTER);
-        lblSub.setBounds(0, 150, 400, 25);
-        this.add(lblSub);
+        lblSub.setFont(new Font("굴림", Font.PLAIN, 14));
+        gbc.gridy = 2;
+        centerPanel.add(lblSub, gbc);
 
         // 점 애니메이션
         Timer timer = new Timer(500, e -> {
@@ -40,7 +54,10 @@ public class WaitingPanel extends JPanel {
             }
         });
         timer.start();
+
+        this.add(centerPanel, new GridBagConstraints());
     }
+
     public void setPlayerInfo(String username) {
         lblName.setText("[ " + username + " ]");
     }

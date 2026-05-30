@@ -54,17 +54,14 @@ public class GameController {
     public void onMessageReceived(GameMessage msg) {
         SwingUtilities.invokeLater(() -> {
             MessageType type = msg.getType();
-
             if (type == MessageType.MATCH_COMPLETE) {
-                // 매칭이 완료되었다면 게임판 화면으로 전환
                 view.showBoardPanel();
+                view.updateGameScreen(msg); // ← 이거 추가!
             } else {
-                // 그 외의 게임 진행 메시지(STATE_UPDATE 등)는 게임판을 갱신
-                view.updateGameScreen(msg); 
+                view.updateGameScreen(msg);
             }
         });
     }
-    
     public static void main(String[] args) {
         new GameController().startGame();
     }

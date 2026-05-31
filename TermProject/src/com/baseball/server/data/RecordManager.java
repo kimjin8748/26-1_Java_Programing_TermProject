@@ -19,7 +19,7 @@ public class RecordManager {
             username = "비회원"; 
         }
 
-        // ⭐ 저장할 상위 폴더(data) 지정 및 자동 생성 로직
+        // 저장할 상위 폴더(data) 지정 및 자동 생성 로직
         String directoryPath = "data";
         File dir = new File(directoryPath);
         if (!dir.exists()) {
@@ -27,7 +27,7 @@ public class RecordManager {
             System.out.println("[시스템] '" + directoryPath + "' 폴더가 없어서 새로 생성했습니다.");
         }
 
-        // ⭐ 핵심: 유저별로 파일 이름을 다르게 생성 (예: data/Player1_history.txt)
+        // 유저별로 파일 이름을 다르게 생성 (예: data/Player1_history.txt)
         String filePath = directoryPath + "/" + username + "_history.txt";
 
         try (PrintWriter out = new PrintWriter(new FileWriter(filePath, true))) {

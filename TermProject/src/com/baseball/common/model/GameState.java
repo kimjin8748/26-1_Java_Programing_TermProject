@@ -10,7 +10,6 @@ public class GameState implements Serializable {
     private int awayScore;
     private int homeScore;
 
-    // 이닝별 점수 배열 추가
     private int[] awayScoreByInning = new int[3];
     private int[] homeScoreByInning = new int[3];
 

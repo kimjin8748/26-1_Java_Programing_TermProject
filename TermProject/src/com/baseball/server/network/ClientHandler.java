@@ -1,4 +1,4 @@
-package com.baseball.server.network;
+	package com.baseball.server.network;
 
 import com.baseball.common.protocol.MessageType;
 import com.baseball.common.protocol.GameMessage;
@@ -19,7 +19,6 @@ public class ClientHandler implements Runnable {
     private ObjectOutputStream out;
     private ObjectInputStream in;
 
-    // 이 클라이언트의 역할
     private boolean isPitcher = false;
 
     public ClientHandler(Socket socket, GameServer server) {

@@ -81,7 +81,6 @@ public class GameServer {
             System.out.println("[서버] AI 모드 시작! AI 역할: " + (aiIsPitcher ? "투수" : "타자"));
             broadcast(new GameMessage(MessageType.STATE_UPDATE, gameState));
 
-            // SwingUtilities로 EDT에서 실행
             SwingUtilities.invokeLater(() -> startAiMode());
         }
     }
@@ -206,7 +205,7 @@ public class GameServer {
                                   + " → " + winner;
                     broadcast(new GameMessage(MessageType.STATE_UPDATE, state));
                     
-                    // ⭐ [추가됨] 클라이언트에게 종료 메시지를 쏘기 직전에 전적 파일 저장!
+                    // 클라이언트에게 종료 메시지를 쏘기 직전에 전적 파일 저장
                     saveRecordsForAll(state);
 
                     broadcast(new GameMessage(MessageType.GAME_OVER, result));
@@ -238,16 +237,14 @@ public class GameServer {
     }
 
     // ==========================================
-    // ⭐ 플레이어 전적을 txt 파일로 누적 저장하는 메서드
+    //  플레이어 전적을 txt 파일로 누적 저장하는 메서드
     // ==========================================
     public synchronized void saveRecordsForAll(GameState state) {
         System.out.println("[서버] RecordManager 클래스에 파일 저장을 요청합니다.");
         
-        // 서버가 관리하는 유저 리스트를 순회
         for (String username : playerNames) {
             if (username == null || username.trim().isEmpty()) continue;
             
-            // ⭐ 내가 직접 쓰지 않고, RecordManager의 static 메서드를 호출하여 저장을 위임합니다!
             RecordManager.savePersonalRecord(username, state);
         }
     }

@@ -148,7 +148,7 @@ public class BoardPanel {
         lbl3Base.setBounds(180, 215, 40, 40);
         frame.getContentPane().add(lbl3Base);
 
-        // 홈베이스 줄무늬 다이아몬드
+        // 홈베이스 
         JPanel homeBase = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {

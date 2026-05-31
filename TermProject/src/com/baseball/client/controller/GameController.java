@@ -24,7 +24,7 @@ public class GameController {
     }
 
     // ==========================================
-    // ⬇️ View에서 발생하는 이벤트 처리 (Action)
+    //  View에서 발생하는 이벤트 처리 (Action)
     // ==========================================
     
     public void login(String username) {
@@ -48,7 +48,7 @@ public class GameController {
     }
 
     // ==========================================
-    // ⬆️ 서버로부터 도착한 메시지 처리 (Response)
+    //  서버로부터 도착한 메시지 처리 (Response)
     // ==========================================
     
     public void onMessageReceived(GameMessage msg) {
@@ -56,7 +56,7 @@ public class GameController {
             MessageType type = msg.getType();
             if (type == MessageType.MATCH_COMPLETE) {
                 view.showBoardPanel();
-                view.updateGameScreen(msg); // ← 이거 추가!
+                view.updateGameScreen(msg); 
             } else {
                 view.updateGameScreen(msg);
             }

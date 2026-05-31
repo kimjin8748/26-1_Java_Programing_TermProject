@@ -699,7 +699,7 @@ public class GamePanel extends JPanel {
 
         // 초기 상태 - 타자 버튼 비활성화 (투구 받기 전까지)
         setPitcherEnabled(isPitcher);
-        setBatterEnabled(false); // ← 처음엔 무조건 false
+        setBatterEnabled(false); 
     }
 
     private void setPitcherEnabled(boolean enabled) {
@@ -722,7 +722,7 @@ public class GamePanel extends JPanel {
         pitcherOverlay.setVisible(!isPitcher);
         batterOverlay.setVisible(isPitcher);
         setPitcherEnabled(isPitcher);
-        setBatterEnabled(false); // ← 공수교대 후 타자 버튼 비활성화! 투구 받아야 활성화
+        setBatterEnabled(false); // ← 공수교대 후 타자 버튼 비활성화, 투구 받아야 활성화
         resetTimingBar();
 
         // 이름 레이블 교체
@@ -786,7 +786,7 @@ public class GamePanel extends JPanel {
 
             case ACTION_PITCH:
                 if (!isPitcher) {
-                    // 투구 받았을 때만 타자 활성화!
+                    // 투구 받았을 때만 타자 활성화
                     addGameLog("⚾ 공이 날아옵니다! 타이밍을 맞춰 타격하세요!");
                     setBatterEnabled(true);
                     btnHit.setEnabled(true);

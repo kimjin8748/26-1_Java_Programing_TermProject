@@ -22,12 +22,12 @@ public class ServerConnection {
             socket = new Socket(SERVER_IP, SERVER_PORT);
             System.out.println("[클라이언트] 서버에 성공적으로 접속했습니다!");
 
-            // 🚨 서버와 마찬가지로 반드시 출력 스트림(Out)부터 열고 flush() 해야 합니다!
+            //  반드시 출력 스트림(Out)부터 열고 flush() 해야 함
             out = new ObjectOutputStream(socket.getOutputStream());
             out.flush();
             in = new ObjectInputStream(socket.getInputStream());
 
-            // 1. 접속하자마자 서버에 LOGIN 메시지 보내보기 (테스트)
+            //  (테스트)접속하자마자 서버에 LOGIN 메시지 보내기
             GameMessage loginMsg = new GameMessage(MessageType.LOGIN, "Player1");
             send(loginMsg);
 

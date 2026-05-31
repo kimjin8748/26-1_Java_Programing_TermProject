@@ -905,8 +905,13 @@ public class GamePanel extends JPanel {
         lblInningArrow.setText(top ? "▲" : "▼");
     }
 
-	public void setPlayerNames(String myName, String opponentName) {
-		// TODO Auto-generated method stub
-		
-	}
+    public void setPlayerNames(String myName, String opponentName) {
+        if (isPitcher) {
+            lblPitcherName.setText("< " + myName + " >");
+            lblBatterName.setText("< " + opponentName + " >");
+        } else {
+            lblPitcherName.setText("< " + opponentName + " >");
+            lblBatterName.setText("< " + myName + " >");
+        }
+    }
 }

@@ -1,12 +1,18 @@
 package com.baseball.server.network;
 
+// ⭐ [추가됨] 파일 저장과 시간 기록을 위한 필수 클래스 임포트
+import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import javax.swing.SwingUtilities;
+
 import com.baseball.common.model.GameState;
 import com.baseball.common.model.PitchData;
 import com.baseball.common.model.SwingData;
@@ -14,6 +20,7 @@ import com.baseball.common.protocol.GameMessage;
 import com.baseball.common.protocol.MessageType;
 import com.baseball.server.core.BaseManager;
 import com.baseball.server.core.Umpire;
+import com.baseball.server.data.RecordManager;
 
 public class GameServer {
     private static final int PORT = 8080;
@@ -198,6 +205,10 @@ public class GameServer {
                                   + " / 홈: " + state.getHomeScore()
                                   + " → " + winner;
                     broadcast(new GameMessage(MessageType.STATE_UPDATE, state));
+                    
+                    // ⭐ [추가됨] 클라이언트에게 종료 메시지를 쏘기 직전에 전적 파일 저장!
+                    saveRecordsForAll(state);
+
                     broadcast(new GameMessage(MessageType.GAME_OVER, result));
                     aiMode = false;
                     return;
@@ -223,6 +234,21 @@ public class GameServer {
         // 판정 후 AI가 투수면 다음 투구
         if (aiMode && aiIsPitcher && state.getOutCount() < 3) {
             SwingUtilities.invokeLater(() -> scheduleAiPitch(2000));
+        }
+    }
+
+    // ==========================================
+    // ⭐ 플레이어 전적을 txt 파일로 누적 저장하는 메서드
+    // ==========================================
+    public synchronized void saveRecordsForAll(GameState state) {
+        System.out.println("[서버] RecordManager 클래스에 파일 저장을 요청합니다.");
+        
+        // 서버가 관리하는 유저 리스트를 순회
+        for (String username : playerNames) {
+            if (username == null || username.trim().isEmpty()) continue;
+            
+            // ⭐ 내가 직접 쓰지 않고, RecordManager의 static 메서드를 호출하여 저장을 위임합니다!
+            RecordManager.savePersonalRecord(username, state);
         }
     }
 
